@@ -1,11 +1,10 @@
 # CodeIgniter Parser
 CI Parser Library extension (empty tags replacement, extended loops, conditional IF and SWITCH structures, CI Helper calls)
-<br>
-<br>
+
 ## Initial Note
 > To see how to load, initialize and use standard methods of the CI Parser Library, see [Template Parser Class Documentation](http://www.codeigniter.com/user_guide/libraries/parser.html)
 
-<br>
+
 ## Installation by Composer
 #### Option 1 : Run composer
 ```shell
@@ -25,21 +24,19 @@ composer require gccloud/parser
 composer update
 ```
 
-<br>
 ## Basic Changes
 - While parsing a view, all tags found that does not match any data variable will be replaced with an empty string
 - The Parser will automatically parse any variable loaded in CI via the Loader Class
 
-<br>
 ## Advanced Examples
 ### Declaring conditional blocks
 #### Conditional IF
 {<b>if</b> {<i>variable</i>} <i>condition</i> <i>value</i>}<br>
 block to output if condition is TRUE<br>
 {<b>/if</b>}
-<br>
+
 OR
-<br>
+
 {<b>if</b> {<i>variable</i>} <i>condition</i> <i>value</i>}<br>
 block to output if condition is TRUE<br>
 {<b>else</b>}<br>
