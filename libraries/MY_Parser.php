@@ -37,54 +37,63 @@ class MY_Parser extends CI_Parser
      */
     protected function _parse($template, $data, $return = FALSE)
     {
-        // First check if we've got something to parse
+        // Primero, verifica si hay algo que parsear
         if ($template === '') {
             return FALSE;
         }
-
-        // Retrieve and load all CI vars
+    
+        // Recupera y carga todas las variables de CI
         $data = array_merge($data, $this->CI->load->get_vars());
-
-        // Check for loop statements
+    
+        // Maneja primero los loops
         $template = $this->_parse_loops($template, TRUE);
-
-        // Variable replacement pre-processing
+    
+        // A continuación, maneja el reemplazo de variables, tanto objetos como pares y simples
+        // Esta operación prepara el reemplazo de datos antes de la manipulación de tags más compleja
         $replace = array();
         foreach ($data as $key => $val) {
             $replace = array_merge(
                 $replace,
                 is_object($val) ? $this->_parse_object($key, $val, $template) :
-                (is_array($val) ? $this->_parse_pair($key, $val, $template) :
+                (is_array($val) ? $this->_parse_pair($key, $val, $template) : 
                 $this->_parse_single($key, (string) $val, $template))
             );
         }
-        // Variable replacement processing (actually viable only for every variable defined in $data, not tags defined in the parsed template)
+    
+        // Procesa el reemplazo de variables
         foreach ($replace as $from => $to) {
-            $template = str_ireplace($from, ( ! is_null($to) ? $to : '%EMPTY_VAR%'), $template);
+            $template = str_ireplace($from, (!is_null($to) ? $to : '%EMPTY_VAR%'), $template);
         }
-
-        // Datas fully replaced, we don't need it anymore
-        unset($data);
-
-        // Unparsed tags replacement (each one will be replaced by a Parser special tag - {EMPTY_VAR})
+    
+        // Sustitución de tags no parseados
         $template = $this->_replace_unparsed($template);
-
-        // Check for helpers calls
+    
+        // Maneja la llamada a helpers, si es necesario
         $template = $this->_parse_helpers($template);
-
-        // Check for conditional statements
+    
+        // Ahora, maneja las rutas de acceso específicas, como {array|propiedad} y {array|propiedad|subpropiedad}
+        // Este paso se mantiene aquí por si se necesitan reemplazos adicionales después de manejar tags anidados y pares
+        $template = $this->_parse_nested_paths($template, $data);
+    
+        // Finalmente, maneja las sentencias condicionales
         $template = $this->_parse_switch($template, TRUE);
         $template = $this->_parse_conditionals($template, TRUE);
-
-        if ($return === FALSE) {
-            $this->CI->output->append_output($template);
-        }
-
-        // And last, unparsed tags removal
+    
+        // Elimina cualquier tag no parseado restante
         $template = $this->_remove_unparsed($template);
 
+        // Retorna el template procesado, agregándolo a la salida si se requiere
+        if ($return === FALSE) {
+            $this->CI->output->append_output($template);
+        } else {
+            return $template;
+        }
+    
+        
+    
         return $template;
     }
+    
 
     /**
      * Parses conditionals pseudo-variables contained in the specified template view
@@ -503,6 +512,46 @@ class MY_Parser extends CI_Parser
 
         return $replace;
     }
+
+    /**
+     * Parses single that specifies a nested path : {some_array.some_key} or {some_array.some_key.some_subkey}
+     * @protected
+     * @param  string
+     * @param  string
+     * @param  string
+     * @return string
+     */
+    protected function _parse_nested_paths($template, $data) {
+        preg_match_all('/\{([a-z0-9_]+(\|[a-z0-9_\.]+)+)\}/i', $template, $matches);
+    
+        if (!empty($matches[1])) {
+            foreach ($matches[1] as $path) {
+                $parts = explode('|', $path);
+                $value = $data;
+                foreach ($parts as $part) {
+                    // Aquí aseguramos que tratamos la clave como string
+                    $part = (string)$part; 
+                    if (is_array($value) && array_key_exists($part, $value)) {
+                        $value = $value[$part];
+                    } else {
+                        $value = null;
+                        break;
+                    }
+                }
+    
+                if ($value !== null) {
+                    $template = str_replace('{' . $path . '}', $value, $template);
+                } else {
+                    // Opción para manejar rutas no encontradas, como dejar el placeholder intacto o reemplazar por un valor por defecto
+                    $template = str_replace('{' . $path . '}', '{NOT FOUND: '.$path.'}', $template);
+                }
+            }
+        }
+    
+        return $template;
+    }
+    
+    
 
     /**
      * Replacde unparsed tags with a Parser dedicated tag (%EMPTY_VAR%)
